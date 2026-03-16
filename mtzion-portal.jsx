@@ -19,6 +19,43 @@ async function sheetsWrite(action, payload) {
   });
 }
 
+// ── GEOCODING — converts addresses to lat/lng using free OpenStreetMap ──
+// Caches results in sessionStorage so we only geocode once per session
+async function geocodeAddress(address) {
+  if (!address) return null;
+  const cacheKey = `geo_${address}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) return JSON.parse(cached);
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+    const res = await fetch(url, { headers:{"Accept-Language":"en"} });
+    const data = await res.json();
+    if (data?.length) {
+      const coords = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      sessionStorage.setItem(cacheKey, JSON.stringify(coords));
+      return coords;
+    }
+  } catch(e) { /* silent fail */ }
+  return null;
+}
+
+// Geocode all records that are missing lat/lng, 300ms apart to respect rate limit
+async function geocodeAll(records, onUpdate) {
+  const results = [...records];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    if (r.address && (!r.lat || !r.lng)) {
+      const coords = await geocodeAddress(r.address);
+      if (coords) {
+        results[i] = { ...r, lat: coords.lat, lng: coords.lng };
+        onUpdate([...results]);
+      }
+      await new Promise(res => setTimeout(res, 300));
+    }
+  }
+  return results;
+}
+
 const C = {
   navy:"#1B3A5C", navyL:"#2A5180", navyD:"#0D2238",
   gold:"#C9A84C", goldL:"#E8C96A", cream:"#F7F4EF", white:"#FFFFFF",
@@ -756,19 +793,31 @@ export default function App() {
     setDataLoading(true); setDataErr("");
     try {
       const data = await sheetsRead();
-      // Always replace state with whatever Sheets returns
-      setRecipients(data.recipients?.length ? data.recipients : []);
-      setTeam(data.team?.length ? data.team : []);
+      const rawRecipients = data.recipients?.length ? data.recipients : [];
+      const rawTeam       = data.team?.length       ? data.team       : [];
+      setRecipients(rawRecipients);
+      setTeam(rawTeam);
       setAssignments(data.assignments?.length ? data.assignments : []);
       setItems(data.items?.length ? data.items : []);
+      setDataLoading(false);
+
+      // Auto-geocode anyone missing coordinates — runs quietly in background
+      const needsGeoR = rawRecipients.some(r=>r.address&&(!r.lat||!r.lng));
+      const needsGeoT = rawTeam.some(t=>t.address&&(!t.lat||!t.lng));
+      if (needsGeoR) {
+        await geocodeAll(rawRecipients, setRecipients);
+      }
+      if (needsGeoT) {
+        await geocodeAll(rawTeam, setTeam);
+      }
     } catch(e) {
       setDataErr("Could not load live data. Check your connection and tap to retry.");
-      // Fall back to demo data only if nothing loaded yet
       setRecipients(r => r.length ? r : INIT_R);
       setTeam(t => t.length ? t : INIT_T);
       setAssignments(a => a.length ? a : INIT_A);
       setItems(i => i.length ? i : INIT_I);
-    } finally { setDataLoading(false); }
+      setDataLoading(false);
+    }
   }, []);
 
   // ── SYNC WRITE TO SHEETS ─────────────────────────────────────────────
@@ -830,7 +879,7 @@ export default function App() {
     {/* DATA LOADING / ERROR */}
     {dataLoading&&<div style={{background:C.infoBg,borderBottom:`2px solid ${C.infoBorder}`,padding:"12px 18px",display:"flex",gap:"10px",alignItems:"center",...SANS}}><span style={{fontSize:"18px"}}>⏳</span><span style={{fontSize:"14px",color:C.info,fontWeight:600}}>Loading live data from Google Sheets…</span></div>}
     {dataErr&&<div style={{background:C.warnBg,borderBottom:`2px solid ${C.warnBorder}`,padding:"12px 18px",display:"flex",gap:"10px",alignItems:"center",...SANS}} onClick={loadFromSheets}><span style={{fontSize:"18px"}}>⚠️</span><div><div style={{fontSize:"14px",color:C.warn,fontWeight:700}}>{dataErr}</div><div style={{fontSize:"12px",color:C.warn}}>Tap here to retry</div></div></div>}
-    {USE_SHEETS&&!dataLoading&&!dataErr&&<div style={{background:C.successBg,borderBottom:`1px solid ${C.successBorder}`,padding:"8px 18px",display:"flex",gap:"8px",alignItems:"center",...SANS}}><span style={{fontSize:"14px"}}>🟢</span><span style={{fontSize:"12px",color:C.success,fontWeight:600}}>Live — synced with Google Sheets</span><button onClick={loadFromSheets} style={{marginLeft:"auto",background:"none",border:"none",color:C.success,fontSize:"12px",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>Refresh ↻</button></div>}
+    {USE_SHEETS&&!dataLoading&&!dataErr&&<div style={{background:C.successBg,borderBottom:`1px solid ${C.successBorder}`,padding:"8px 18px",display:"flex",gap:"8px",alignItems:"center",...SANS}}><span style={{fontSize:"14px"}}>🟢</span><span style={{fontSize:"12px",color:C.success,fontWeight:600}}>Live — synced with Google Sheets{(recipients.some(r=>r.address&&(!r.lat||!r.lng))||team.some(t=>t.address&&(!t.lat||!t.lng)))?" · 📍 Calculating distances…":""}</span><button onClick={loadFromSheets} style={{marginLeft:"auto",background:"none",border:"none",color:C.success,fontSize:"12px",cursor:"pointer",fontWeight:600,fontFamily:"inherit"}}>Refresh ↻</button></div>}
 
     {/* PENDING BANNER */}
     {myPending.length>0&&!selR&&!selI&&!selT&&tab==="home"&&<div style={{background:`linear-gradient(135deg,${C.warnBg},#FEF3C7)`,borderBottom:`2px solid ${C.warnBorder}`,padding:"14px 18px",display:"flex",gap:"12px",alignItems:"center",cursor:"pointer"}} onClick={()=>goTab("team")}>
