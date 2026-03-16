@@ -718,6 +718,9 @@ function ItemForm({data,recipients,prefill,onClose,onSave}) {
 }
 
 // ── MAIN APP ──────────────────────────────────────────────────────────
+// ── INITIAL STATE — empty when Sheets is configured, demo data as fallback ──
+const EMPTY = { recipients:[], team:[], assignments:[], items:[] };
+
 const MY_TEAM_ID = "t4"; // Deacon John (Thomas Anderson for demo)
 
 export default function App() {
@@ -730,10 +733,10 @@ export default function App() {
   const [loading,setLoading]=useState(false);
   const [dataLoading,setDataLoading]=useState(false);
   const [dataErr,setDataErr]=useState("");
-  const [recipients,setRecipients]=useState(INIT_R);
-  const [team,setTeam]=useState(INIT_T);
-  const [assignments,setAssignments]=useState(INIT_A);
-  const [items,setItems]=useState(INIT_I);
+  const [recipients,setRecipients]=useState(USE_SHEETS?[]:INIT_R);
+  const [team,setTeam]=useState(USE_SHEETS?[]:INIT_T);
+  const [assignments,setAssignments]=useState(USE_SHEETS?[]:INIT_A);
+  const [items,setItems]=useState(USE_SHEETS?[]:INIT_I);
   const [search,setSearch]=useState("");
   const [rFilter,setRFilter]=useState("all");
   const [stFilter,setStFilter]=useState("all");
@@ -753,12 +756,18 @@ export default function App() {
     setDataLoading(true); setDataErr("");
     try {
       const data = await sheetsRead();
-      if (data.recipients?.length) setRecipients(data.recipients);
-      if (data.team?.length)       setTeam(data.team);
-      if (data.assignments?.length)setAssignments(data.assignments);
-      if (data.items?.length)      setItems(data.items);
+      // Always replace state with whatever Sheets returns
+      setRecipients(data.recipients?.length ? data.recipients : []);
+      setTeam(data.team?.length ? data.team : []);
+      setAssignments(data.assignments?.length ? data.assignments : []);
+      setItems(data.items?.length ? data.items : []);
     } catch(e) {
-      setDataErr("Could not load live data. Using local data for now. Check your connection and try again.");
+      setDataErr("Could not load live data. Check your connection and tap to retry.");
+      // Fall back to demo data only if nothing loaded yet
+      setRecipients(r => r.length ? r : INIT_R);
+      setTeam(t => t.length ? t : INIT_T);
+      setAssignments(a => a.length ? a : INIT_A);
+      setItems(i => i.length ? i : INIT_I);
     } finally { setDataLoading(false); }
   }, []);
 
