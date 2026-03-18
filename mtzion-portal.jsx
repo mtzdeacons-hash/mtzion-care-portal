@@ -274,7 +274,9 @@ function LoginScreen({showPw,setShowPw,email,setEmail,pw,setPw,err,loading,onLog
   return <div style={{...SANS,minHeight:"100vh",background:`linear-gradient(160deg,${C.navyD},${C.navy} 55%,#1e4d7a)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"28px",maxWidth:"430px",margin:"0 auto",position:"relative",overflow:"hidden"}}>
     <div style={{position:"absolute",top:"8%",left:"8%",fontSize:"200px",lineHeight:1,opacity:0.04,pointerEvents:"none"}}>✝</div>
     <div style={{textAlign:"center",marginBottom:"36px"}}>
-      <div style={{width:"80px",height:"80px",borderRadius:"24px",background:`linear-gradient(135deg,${C.gold},${C.goldL})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"38px",margin:"0 auto 18px",boxShadow:"0 10px 30px rgba(201,168,76,0.45)"}}>✝️</div>
+      <div style={{width:"80px",height:"80px",borderRadius:"24px",background:`linear-gradient(135deg,${C.navy},${C.navyL})`,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 18px",boxShadow:"0 10px 30px rgba(201,168,76,0.45)",overflow:"hidden"}}>
+        <img src="/icon-192.png" alt="Mt. Zion Ontario" style={{width:"80px",height:"80px",borderRadius:"24px",objectFit:"cover"}}/>
+      </div>
       <div style={{...SERIF,color:"white",fontSize:"28px",fontWeight:700,marginBottom:"6px"}}>Mt. Zion Ontario</div>
       <div style={{color:C.gold,fontSize:"13px",letterSpacing:"2px",textTransform:"uppercase",fontWeight:600}}>Care Ministry Portal</div>
       <div style={{color:"rgba(255,255,255,0.45)",fontSize:"13px",marginTop:"8px"}}>Deacon · Deaconess · Minister · Pastor</div>
