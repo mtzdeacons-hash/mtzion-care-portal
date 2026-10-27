@@ -1,22 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="Care Ministry"/>
-  <meta name="theme-color" content="#1B3A5C"/>
-  <title>Mt. Zion Care Ministry</title>
-  <link rel="manifest" href="/manifest.json"/>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0D2238; }
-    #root { min-height: 100vh; }
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/main.jsx"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- PWA / Install -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1B3A5C" />
+
+    <!-- iOS Home Screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Care Ministry" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+
+    <!-- Android / general -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="application-name" content="Care Ministry" />
+
+    <!-- Splash screen color on iOS -->
+    <meta name="msapplication-TileColor" content="#1B3A5C" />
+    <meta name="msapplication-TileImage" content="/icons/icon-192.png" />
+
+    <title>Mt. Zion Care Ministry</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.jsx"></script>
+  </body>
 </html>
