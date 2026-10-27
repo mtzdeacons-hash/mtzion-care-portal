@@ -133,6 +133,10 @@ function FreqBadge({ frequency }) {
 export default function App() {
   const [screen,      setScreen]     = useState("login");
   const [user,        setUser]       = useState(null);
+  const [loginStep,   setLoginStep]  = useState("select"); // "select" | "pin"
+  const [loginMember, setLoginMember]= useState(null);
+  const [pinInput,    setPinInput]   = useState("");
+  const [pinError,    setPinError]   = useState(false);
   const [team,        setTeam]       = useState([]);
   const [people,      setPeople]     = useState([]);
   const [logEntries,  setLogEntries] = useState([]);
@@ -195,27 +199,49 @@ export default function App() {
   useEffect(() => { loadData(); }, [loadData]);
 
   function normalizeTeam(row) {
-    const r = k => String(row[k] || row[k.charAt(0).toUpperCase()+k.slice(1)] || "");
+    const r = k => {
+      const v = row[k] ?? row[k.charAt(0).toUpperCase()+k.slice(1)] ?? "";
+      return v === null || v === false ? "" : String(v).trim();
+    };
     return {
       id:        r("id"),
       name:      r("name"),
       role:      r("role").toLowerCase() || "deacon",
       available: r("available") || "Yes",
+      pin:       r("pin"),
     };
   }
 
   function normalizeRecipient(row) {
-    const r = k => String(row[k] || row[k.charAt(0).toUpperCase()+k.slice(1)] || "");
+    const r = k => {
+      const v = row[k] ?? row[k.charAt(0).toUpperCase()+k.slice(1)] ?? "";
+      return v === null || v === false ? "" : String(v).trim();
+    };
+    // Support both "firstName"+"lastName" (original schema) and "name" (new schema)
+    const firstName = r("firstName");
+    const lastName  = r("lastName");
+    let name = r("name");
+    if (!name && (firstName || lastName)) {
+      name = [firstName, lastName].filter(Boolean).join(" ");
+    }
+    // Support both "cellPhone"/"homePhone" (original) and "phone" (new)
+    const phone = r("cellPhone") || r("homePhone") || r("phone");
+
     return {
       id:              r("id"),
-      name:            r("name"),
-      phone:           r("phone"),
+      name,
+      title:           r("title"),
+      phone,
+      homePhone:       r("homePhone"),
       address:         r("address"),
       notes:           r("notes"),
       assignedTo:      r("assignedTo"),
       frequency:       r("frequency") || DEFAULT_FREQ,
       lastContact:     r("lastContact"),
       lastContactType: r("lastContactType"),
+      lat:             row.lat  ?? row.Lat  ?? null,
+      lng:             row.lng  ?? row.Lng  ?? null,
+      status:          r("status") || "active",
     };
   }
 
@@ -236,6 +262,29 @@ export default function App() {
   }
 
   // ── Login / logout ─────────────────────────────────────────────────────────
+  function handleSelectMember(member) {
+    setLoginMember(member);
+    setPinInput("");
+    setPinError(false);
+    setLoginStep("pin");
+  }
+
+  function handlePinSubmit() {
+    const correct = loginMember.pin ? String(loginMember.pin) : "1234";
+    if (pinInput === correct) {
+      setUser(loginMember);
+      setView("all");
+      setExpanded(null);
+      setLoginStep("select");
+      setLoginMember(null);
+      setPinInput("");
+      setScreen("home");
+    } else {
+      setPinError(true);
+      setPinInput("");
+    }
+  }
+
   function handleLogin(member) {
     setUser(member);
     setView("all");
@@ -245,6 +294,10 @@ export default function App() {
 
   function handleLogout() {
     setUser(null);
+    setLoginStep("select");
+    setLoginMember(null);
+    setPinInput("");
+    setPinError(false);
     setScreen("login");
     setExpanded(null);
   }
@@ -362,6 +415,69 @@ export default function App() {
   // ═══════════════════════════════════════════════════════════════════════════
   if (screen === "login") {
     const available = team.filter(m => m.available !== "No");
+
+    // ── Step 2: PIN entry ──────────────────────────────────────────────────
+    if (loginStep === "pin" && loginMember) {
+      return (
+        <div style={{ minHeight:"100vh", background:C.navyDark, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px", fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+          <div style={{ width:"100%", maxWidth:400 }}>
+            <div style={{ textAlign:"center", marginBottom:32 }}>
+              <img src={LOGO} alt="Mt. Zion" style={{ width:80, height:80, marginBottom:12, borderRadius:"50%" }} />
+              <div style={{ color:C.white, fontSize:22, fontWeight:700 }}>Mt. Zion Care Ministry</div>
+              <div style={{ color:"#94A3B8", fontSize:13, marginTop:4 }}>Ontario & Ontario Ranch</div>
+            </div>
+            <div style={{ background:C.white, borderRadius:16, padding:"24px 20px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
+              {/* Who is logging in */}
+              <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:20, paddingBottom:16, borderBottom:"1px solid "+C.border }}>
+                <div style={{ width:44, height:44, borderRadius:"50%", background:C.navy, color:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:15, flexShrink:0 }}>
+                  {loginMember.name.split(" ").map(w=>w[0]).slice(0,2).join("")}
+                </div>
+                <div>
+                  <div style={{ fontWeight:700, color:C.navyDark, fontSize:16 }}>{loginMember.name}</div>
+                  <div style={{ fontSize:12, color:C.gray, textTransform:"capitalize" }}>{loginMember.role}</div>
+                </div>
+              </div>
+
+              <div style={{ fontSize:15, fontWeight:700, color:C.navyDark, marginBottom:4 }}>Enter your PIN</div>
+              <div style={{ fontSize:13, color:C.gray, marginBottom:14 }}>4-digit access code</div>
+
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                onChange={e => { setPinInput(e.target.value.replace(/\D/g,"")); setPinError(false); }}
+                onKeyDown={e => e.key === "Enter" && pinInput.length === 4 && handlePinSubmit()}
+                autoFocus
+                placeholder="••••"
+                style={{ width:"100%", border:"2px solid "+(pinError?C.red:C.border), borderRadius:10, padding:"14px 16px", fontSize:28, textAlign:"center", letterSpacing:12, outline:"none", boxSizing:"border-box", fontFamily:"monospace" }}
+              />
+
+              {pinError && (
+                <div style={{ color:C.red, fontSize:13, textAlign:"center", marginTop:8, fontWeight:600 }}>
+                  Incorrect PIN. Try again.
+                </div>
+              )}
+
+              <button onClick={handlePinSubmit} disabled={pinInput.length < 4}
+                style={{ width:"100%", marginTop:14, background:pinInput.length===4?C.navy:"#CBD5E1", color:C.white, border:"none", borderRadius:10, padding:"14px", fontSize:16, fontWeight:700, cursor:pinInput.length===4?"pointer":"not-allowed" }}>
+                Sign In
+              </button>
+
+              <button onClick={() => { setLoginStep("select"); setLoginMember(null); setPinError(false); setPinInput(""); }}
+                style={{ width:"100%", marginTop:10, background:"transparent", border:"none", color:C.gray, fontSize:13, cursor:"pointer", padding:"8px" }}>
+                ← Back
+              </button>
+            </div>
+            <div style={{ textAlign:"center", marginTop:14, fontSize:11, color:"#475569" }}>
+              Contact Deacon Edgar if you need your PIN reset
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Step 1: Select name ────────────────────────────────────────────────
     return (
       <div style={{ minHeight:"100vh", background:C.navyDark, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px", fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
         <div style={{ width:"100%", maxWidth:400 }}>
@@ -378,7 +494,7 @@ export default function App() {
             ) : (
               <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                 {available.map(m => (
-                  <button key={m.id} onClick={() => handleLogin(m)}
+                  <button key={m.id} onClick={() => handleSelectMember(m)}
                     style={{ background:C.grayLight, border:"1.5px solid "+C.border, borderRadius:10, padding:"12px 16px", textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
                     <div style={{ width:40, height:40, borderRadius:"50%", background:C.navy, color:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:14, flexShrink:0 }}>
                       {m.name.split(" ").map(w => w[0]).slice(0,2).join("")}
@@ -393,7 +509,7 @@ export default function App() {
             )}
             {syncErr && <div style={{ marginTop:12, fontSize:12, color:C.amber, textAlign:"center" }}>⚠️ Could not reach live data. Showing demo names.</div>}
           </div>
-          <div style={{ textAlign:"center", marginTop:16, fontSize:11, color:"#64748B" }}>All team members share this login during the pilot</div>
+          <div style={{ textAlign:"center", marginTop:16, fontSize:11, color:"#64748B" }}>Secure access — PIN required after selection</div>
         </div>
       </div>
     );
@@ -669,6 +785,7 @@ export default function App() {
                 <StatusDot lastContact={person.lastContact} frequency={person.frequency} size={13} />
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ fontWeight:600, fontSize:15, color:C.navyDark, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>
+                    {person.title && <span style={{ fontSize:11, color:C.navyLight, fontWeight:500, marginRight:4 }}>{person.title}</span>}
                     {person.name}
                   </div>
                   <div style={{ fontSize:12, color:C.gray, marginTop:2, display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
