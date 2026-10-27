@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
-const SHEETS_URL = "https://script.google.com/macros/s/AKfycbykoAim3lv9YuThzigLHmjtbvshl9r2j6h0-azMyyeYxKkyi9bHQLaQ5ONuQ502vu17Ig/exec";
+const SHEETS_URL = "https://script.google.com/macros/s/AKfycbzBigKTzH5Gx61Opru8yhRma8LNyX8UnE7Hxy81vG0hCZFW6Xr1RSEkx1W_Srip53j1Pg/exec";
 const USE_SHEETS = true;
 
 // Contact frequency → overdue threshold in days
