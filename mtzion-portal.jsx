@@ -135,6 +135,7 @@ export default function App() {
   const [user,        setUser]       = useState(null);
   const [loginStep,   setLoginStep]  = useState("select"); // "select" | "pin"
   const [loginMember, setLoginMember]= useState(null);
+  const [loginSearch, setLoginSearch]= useState("");
   const [pinInput,    setPinInput]   = useState("");
   const [pinError,    setPinError]   = useState(false);
   const [team,        setTeam]       = useState([]);
@@ -203,9 +204,15 @@ export default function App() {
       const v = row[k] ?? row[k.charAt(0).toUpperCase()+k.slice(1)] ?? "";
       return v === null || v === false ? "" : String(v).trim();
     };
+    const firstName = r("firstName");
+    const lastName  = r("lastName");
+    let name = r("name");
+    if (!name && (firstName || lastName)) {
+      name = [firstName, lastName].filter(Boolean).join(" ");
+    }
     return {
       id:        r("id"),
-      name:      r("name"),
+      name,
       role:      r("role").toLowerCase() || "deacon",
       available: r("available") || "Yes",
       pin:       r("pin"),
@@ -296,6 +303,7 @@ export default function App() {
     setUser(null);
     setLoginStep("select");
     setLoginMember(null);
+    setLoginSearch("");
     setPinInput("");
     setPinError(false);
     setScreen("login");
@@ -477,7 +485,12 @@ export default function App() {
       );
     }
 
-    // ── Step 1: Select name ────────────────────────────────────────────────
+    // ── Step 1: Search name ────────────────────────────────────────────────
+    const searchTerm = loginSearch.trim().toLowerCase();
+    const searchResults = searchTerm.length >= 2
+      ? available.filter(m => m.name.toLowerCase().includes(searchTerm))
+      : [];
+
     return (
       <div style={{ minHeight:"100vh", background:C.navyDark, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 16px", fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
         <div style={{ width:"100%", maxWidth:400 }}>
@@ -487,29 +500,48 @@ export default function App() {
             <div style={{ color:"#94A3B8", fontSize:13, marginTop:4 }}>Ontario & Ontario Ranch</div>
           </div>
           <div style={{ background:C.white, borderRadius:16, padding:"24px 20px", boxShadow:"0 8px 32px rgba(0,0,0,0.3)" }}>
-            <div style={{ fontSize:17, fontWeight:700, color:C.navyDark, marginBottom:4 }}>Who are you?</div>
-            <div style={{ fontSize:13, color:C.gray, marginBottom:16 }}>Select your name to continue</div>
+            <div style={{ fontSize:17, fontWeight:700, color:C.navyDark, marginBottom:4 }}>Sign In</div>
+            <div style={{ fontSize:13, color:C.gray, marginBottom:16 }}>Start typing your name</div>
             {loading ? (
-              <div style={{ textAlign:"center", padding:24, color:C.gray }}>Loading team…</div>
+              <div style={{ textAlign:"center", padding:24, color:C.gray }}>Loading…</div>
             ) : (
-              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-                {available.map(m => (
-                  <button key={m.id} onClick={() => handleSelectMember(m)}
-                    style={{ background:C.grayLight, border:"1.5px solid "+C.border, borderRadius:10, padding:"12px 16px", textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ width:40, height:40, borderRadius:"50%", background:C.navy, color:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:14, flexShrink:0 }}>
-                      {m.name.split(" ").map(w => w[0]).slice(0,2).join("")}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight:600, color:C.navyDark, fontSize:15 }}>{m.name}</div>
-                      <div style={{ fontSize:12, color:C.gray, textTransform:"capitalize", marginTop:1 }}>{m.role}</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              <>
+                <input
+                  type="text"
+                  autoFocus
+                  autoComplete="off"
+                  placeholder="Type your name…"
+                  value={loginSearch}
+                  onChange={e => setLoginSearch(e.target.value)}
+                  style={{ width:"100%", border:"2px solid "+C.border, borderRadius:10, padding:"13px 16px", fontSize:16, outline:"none", boxSizing:"border-box", color:C.navyDark }}
+                />
+                {searchTerm.length > 0 && searchTerm.length < 2 && (
+                  <div style={{ fontSize:12, color:C.gray, marginTop:8, textAlign:"center" }}>Keep typing…</div>
+                )}
+                {searchResults.length > 0 && (
+                  <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:12 }}>
+                    {searchResults.map(m => (
+                      <button key={m.id} onClick={() => { handleSelectMember(m); setLoginSearch(""); }}
+                        style={{ background:C.grayLight, border:"1.5px solid "+C.border, borderRadius:10, padding:"12px 16px", textAlign:"left", cursor:"pointer", display:"flex", alignItems:"center", gap:12 }}>
+                        <div style={{ width:40, height:40, borderRadius:"50%", background:C.navy, color:C.white, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:700, fontSize:14, flexShrink:0 }}>
+                          {m.name.split(" ").map(w => w[0]).slice(0,2).join("")}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight:600, color:C.navyDark, fontSize:15 }}>{m.name}</div>
+                          <div style={{ fontSize:12, color:C.gray, textTransform:"capitalize", marginTop:1 }}>{m.role}</div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchTerm.length >= 2 && searchResults.length === 0 && (
+                  <div style={{ fontSize:13, color:C.red, marginTop:12, textAlign:"center" }}>No match found. Contact Deacon Edgar.</div>
+                )}
+              </>
             )}
-            {syncErr && <div style={{ marginTop:12, fontSize:12, color:C.amber, textAlign:"center" }}>⚠️ Could not reach live data. Showing demo names.</div>}
+            {syncErr && <div style={{ marginTop:12, fontSize:12, color:C.amber, textAlign:"center" }}>⚠️ Could not reach live data.</div>}
           </div>
-          <div style={{ textAlign:"center", marginTop:16, fontSize:11, color:"#64748B" }}>Secure access — PIN required after selection</div>
+          <div style={{ textAlign:"center", marginTop:16, fontSize:11, color:"#64748B" }}>Secure access — PIN required</div>
         </div>
       </div>
     );
